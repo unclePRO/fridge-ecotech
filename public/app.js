@@ -23,75 +23,78 @@ const API_URL = 'http://localhost:5000/api/food';
 // --- 2. AUTHENTICATION ---
 window.signInWithGoogle = () => { signInWithPopup(auth, provider).catch(e => console.error(e)); };
 window.signOutUser = () => { 
-    signOut(auth); 
-    localStorage.clear(); 
-    window.location.reload(); 
+    signOut(auth).then(() => {
+        // We clear local storage to ensure the next user doesn't see old data
+        localStorage.clear(); 
+        window.location.reload(); 
+    });
 };
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     currentUser = user;
     const loginBtn = document.getElementById('loginBtn');
     const logoutBtn = document.getElementById('logoutBtn');
     const userProfile = document.getElementById('userProfile');
     const userNameDisplay = document.getElementById('userNameDisplay');
     const userAvatar = document.getElementById('userAvatar');
-    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingOverlay = document.getElementById('loadingOverlay'); // For the flicker fix
 
     if (user) {
+        // 1. Basic UI Setup
         loginBtn.classList.add('hidden');
         logoutBtn.classList.remove('hidden');
         userNameDisplay.innerText = `Hi, ${user.displayName.split(' ')[0]}`; 
         userAvatar.src = user.photoURL || 'https://ui-avatars.com/api/?name=' + user.displayName;
         userProfile.classList.remove('hidden');
-
         document.querySelectorAll('.auth-req').forEach(el => el.classList.remove('hidden'));
         document.querySelectorAll('.logged-out-only').forEach(el => el.classList.add('hidden'));
 
-        // Load Local Profile if it exists
-        const savedProfile = localStorage.getItem(`fridge_profile_${user.uid}`);
-        if (savedProfile) {
-            currentProfile = JSON.parse(savedProfile);
-            if(document.getElementById('displayOrgName')) {
-                document.getElementById('displayOrgName').innerText = currentProfile.orgName;
-            }
+        try {
+            // 2. Fetch Profile from MongoDB (Permanent Storage)
+            const response = await fetch(`${API_URL}/profile/${user.uid}`);
             
-            // Pre-fill profile form
-            if(document.getElementById('userRole')) document.getElementById('userRole').value = currentProfile.role || '';
-            if(document.getElementById('orgName')) document.getElementById('orgName').value = currentProfile.orgName.replace(' ✓', '') || '';
-            window.toggleVerificationFields(); 
-            if(document.getElementById('fssaiNum') && currentProfile.licenseNumber) document.getElementById('fssaiNum').value = currentProfile.licenseNumber;
-            if(document.getElementById('darpanId') && currentProfile.licenseNumber) document.getElementById('darpanId').value = currentProfile.licenseNumber;
-            if(document.getElementById('contactPerson')) document.getElementById('contactPerson').value = currentProfile.contactPerson || '';
-            if(document.getElementById('contactPhone')) document.getElementById('contactPhone').value = currentProfile.phone || '';
-            
-            // Set location if it exists
-            if (currentProfile.lat && currentProfile.lng) {
-                userLocation = [currentProfile.lat, currentProfile.lng];
-                if (findMap) {
-                    findMap.setView(userLocation, 14);
-                    findUserMarker.setLatLng(userLocation);
-                    window.loadFoodFeed();
+            if (response.ok) {
+                currentProfile = await response.json();
+                
+                // Backup to localStorage for session speed
+                localStorage.setItem(`fridge_profile_${user.uid}`, JSON.stringify(currentProfile));
+                
+                // Update UI elements
+                if(document.getElementById('displayOrgName')) {
+                    document.getElementById('displayOrgName').innerText = currentProfile.orgName;
                 }
+                
+                // Pre-fill the Profile Form
+                fillProfileForm(currentProfile);
+
+                if (currentProfile.lat && currentProfile.lng) {
+                    userLocation = [currentProfile.lat, currentProfile.lng];
+                }
+            } else {
+                // If no profile exists in DB, they are a new user
+                console.log("New user detected, redirection needed.");
             }
+        } catch (err) {
+            console.error("Database sync failed:", err);
         }
-        if (loadingOverlay) {
-            loadingOverlay.style.opacity = '0';
-            setTimeout(() => loadingOverlay.style.display = 'none', 400);
-        }
+
     } else {
+        // Logged Out State
         loginBtn.classList.remove('hidden');
         logoutBtn.classList.add('hidden');
         userProfile.classList.add('hidden');
         document.querySelectorAll('.auth-req').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.logged-out-only').forEach(el => el.classList.remove('hidden'));
+    }
 
-        if (loadingOverlay) {
-            loadingOverlay.style.opacity = '0';
-            setTimeout(() => loadingOverlay.style.display = 'none', 400);
-        }
+    // 3. THE FLICKER FIX: Hide overlay only after all logic is finished
+    if (loadingOverlay) {
+        loadingOverlay.style.opacity = '0';
+        setTimeout(() => {
+            loadingOverlay.style.display = 'none';
+        }, 400); // Matches the transition time in CSS
     }
 });
-
 // --- 3. UI HELPERS ---
 window.toggleVerificationFields = () => {
     const role = document.getElementById('userRole').value;

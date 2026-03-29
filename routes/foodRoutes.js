@@ -16,11 +16,15 @@ router.post('/profile', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Get profile by UID
 router.get('/profile/:uid', async (req, res) => {
     try {
-        const user = await User.findOne({ uid: req.params.uid });
-        res.json(user || null);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        const profile = await Profile.findOne({ uid: req.params.uid });
+        if (!profile) return res.status(404).json({ message: "Profile not found" });
+        res.json(profile);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // --- FOOD LISTING ROUTES ---
