@@ -145,6 +145,19 @@ function initMaps() {
     }
 }
 
+// --- The Auth Guard ---
+window.requireAuth = (targetView) => {
+    // Check if the user is logged in using Firebase Auth
+    const user = auth.currentUser; 
+
+    if (!user) {
+        alert("🔒 Please Sign In with Google first to access this feature!");
+        return;
+    }
+
+    switchView(targetView);
+}
+
 // --- 5. NAVIGATION (STRICT CLICK-BLOCK) ---
 window.switchView = (viewId) => {
     
