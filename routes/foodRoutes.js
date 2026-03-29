@@ -3,6 +3,7 @@ const router = express.Router();
 const Food = require('../models/Food');
 const User = require('../models/User');
 
+
 // --- USER PROFILE ROUTES (Replaces LocalStorage!) ---
 router.post('/profile', async (req, res) => {
     try {
@@ -19,11 +20,16 @@ router.post('/profile', async (req, res) => {
 // Get profile by UID
 router.get('/profile/:uid', async (req, res) => {
     try {
-        const profile = await Profile.findOne({ uid: req.params.uid });
-        if (!profile) return res.status(404).json({ message: "Profile not found" });
+        // Use the User model here
+        const profile = await User.findOne({ uid: req.params.uid });
+        
+        if (!profile) {
+            return res.status(404).json({ message: "No profile found" });
+        }
         res.json(profile);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error("🛑 Profile Fetch Error:", err.message);
+        res.status(500).json({ error: "Database lookup failed" });
     }
 });
 

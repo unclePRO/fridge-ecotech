@@ -37,10 +37,10 @@ onAuthStateChanged(auth, async (user) => {
     const userProfile = document.getElementById('userProfile');
     const userNameDisplay = document.getElementById('userNameDisplay');
     const userAvatar = document.getElementById('userAvatar');
-    const loadingOverlay = document.getElementById('loadingOverlay'); // For the flicker fix
+    const loadingOverlay = document.getElementById('loadingOverlay');
 
     if (user) {
-        // 1. Basic UI Setup
+        // 1. Initial UI Setup
         loginBtn.classList.add('hidden');
         logoutBtn.classList.remove('hidden');
         userNameDisplay.innerText = `Hi, ${user.displayName.split(' ')[0]}`; 
@@ -50,32 +50,36 @@ onAuthStateChanged(auth, async (user) => {
         document.querySelectorAll('.logged-out-only').forEach(el => el.classList.add('hidden'));
 
         try {
-            // 2. Fetch Profile from MongoDB (Permanent Storage)
+            // 2. Fetch Persistent Profile from MongoDB
+            console.log("Fetching profile for UID:", user.uid);
             const response = await fetch(`${API_URL}/profile/${user.uid}`);
             
             if (response.ok) {
                 currentProfile = await response.json();
+                console.log("Profile Sync Successful:", currentProfile);
                 
-                // Backup to localStorage for session speed
+                // Save to local storage for quick access
                 localStorage.setItem(`fridge_profile_${user.uid}`, JSON.stringify(currentProfile));
                 
-                // Update UI elements
+                // Update specific UI labels
                 if(document.getElementById('displayOrgName')) {
                     document.getElementById('displayOrgName').innerText = currentProfile.orgName;
                 }
                 
-                // Pre-fill the Profile Form
+                // 3. CALL THE HELPER TO AUTO-FILL THE FORM
                 fillProfileForm(currentProfile);
 
+                // Set coordinates for the app's distance calculations
                 if (currentProfile.lat && currentProfile.lng) {
                     userLocation = [currentProfile.lat, currentProfile.lng];
                 }
             } else {
-                // If no profile exists in DB, they are a new user
-                console.log("New user detected, redirection needed.");
+                // If 404/No profile, it's a new user - force them to Profile view
+                console.warn("No profile found in DB. User must verify.");
+                window.switchView('profile');
             }
         } catch (err) {
-            console.error("Database sync failed:", err);
+            console.error("Critical: Database sync failed during login.", err);
         }
 
     } else {
@@ -87,14 +91,15 @@ onAuthStateChanged(auth, async (user) => {
         document.querySelectorAll('.logged-out-only').forEach(el => el.classList.remove('hidden'));
     }
 
-    // 3. THE FLICKER FIX: Hide overlay only after all logic is finished
+    // 4. THE FLICKER FIX: Only hide the white screen once EVERYTHING above is done
     if (loadingOverlay) {
         loadingOverlay.style.opacity = '0';
         setTimeout(() => {
             loadingOverlay.style.display = 'none';
-        }, 400); // Matches the transition time in CSS
+        }, 400);
     }
 });
+
 // --- 3. UI HELPERS ---
 window.toggleVerificationFields = () => {
     const role = document.getElementById('userRole').value;
@@ -380,16 +385,21 @@ document.addEventListener('submit', async (e) => {
         localStorage.setItem(`fridge_profile_${currentUser.uid}`, JSON.stringify(currentProfile));
 
         try {
-            await fetch(`${API_URL}/profile`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    uid: currentUser.uid, orgName: currentProfile.orgName, role: currentProfile.role,
-                    licenseNumber: currentProfile.licenseNumber, isVerified: currentProfile.isVerified,
-                    contactPerson: currentProfile.contactPerson, phone: currentProfile.phone,
-                    lat: currentProfile.lat, lng: currentProfile.lng
-                })
-            });
+        await fetch(`${API_URL}/profile`, { // Ensure this matches your POST route
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                uid: currentUser.uid, 
+                orgName: currentProfile.orgName, 
+                role: currentProfile.role,
+                licenseNumber: currentProfile.licenseNumber, 
+                isVerified: currentProfile.isVerified,
+                contactPerson: currentProfile.contactPerson, 
+                phone: currentProfile.phone,
+                lat: currentProfile.lat, 
+                lng: currentProfile.lng
+            })
+        });
             alert("✅ Verification & Location Saved Successfully!");
             window.switchView('home');
         } catch (err) { console.error("Profile Sync Error", err); }
@@ -431,6 +441,28 @@ document.addEventListener('submit', async (e) => {
         } catch (error) { console.error("Donation Error:", error); }
     }
 });
+
+function fillProfileForm(data) {
+    const roleEl = document.getElementById('userRole');
+    const orgEl = document.getElementById('orgName');
+    const contactEl = document.getElementById('contactPerson');
+    const phoneEl = document.getElementById('contactPhone');
+    const fssaiEl = document.getElementById('fssaiNum');
+    const darpanEl = document.getElementById('darpanId');
+
+    if (roleEl) roleEl.value = data.role || '';
+    if (orgEl) orgEl.value = (data.orgName || '').replace(' ✓', '');
+    
+    // Trigger the toggle so the FSSAI/DARPAN fields unhide
+    window.toggleVerificationFields(); 
+
+    if (contactEl) contactEl.value = data.contactPerson || '';
+    if (phoneEl) phoneEl.value = data.phone || '';
+    
+    // License number could be in either field depending on role
+    if (data.role === 'donor' && fssaiEl) fssaiEl.value = data.licenseNumber || '';
+    if (data.role === 'ngo' && darpanEl) darpanEl.value = data.licenseNumber || '';
+}
 
 // --- INIT ---
 window.onload = () => { initMaps(); window.loadLeaderboard(); };
