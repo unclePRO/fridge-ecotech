@@ -20,7 +20,6 @@ router.post('/profile', async (req, res) => {
 // Get profile by UID
 router.get('/profile/:uid', async (req, res) => {
     try {
-        // Use the User model here
         const profile = await User.findOne({ uid: req.params.uid });
         
         if (!profile) {
@@ -60,16 +59,13 @@ router.get('/leaderboard', async (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
-        // 1. Print the incoming data to your terminal to see what's missing
         console.log("Incoming Food Payload:", req.body); 
 
-        // 2. Attempt to save to MongoDB
         const newFood = new Food(req.body);
         await newFood.save();
         
         res.status(201).json(newFood);
     } catch (err) {
-        // 3. Print the EXACT reason it failed to your terminal
         console.error("🛑 Mongoose Error:", err.message); 
         res.status(500).json({ error: err.message });
     }
