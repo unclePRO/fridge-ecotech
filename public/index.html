@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>fridge! | EcoTech</title>
-    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="icon" type="image/png" href="favicon.png">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
@@ -16,7 +16,10 @@
     </div>
 
     <header>
-        <div class="logo" onclick="switchView('home')">fridge!</div>
+        <div class="logo" onclick="switchView('home')" style="display: flex; align-items: center; gap: 10px;">
+            <img src="favicon.png" alt="Fridge Logo" style="height: 40px; width: auto;">
+            <span>fridge!</span>
+        </div>
         <nav>
             <ul class="nav-links">
                 <li><button onclick="switchView('home')" class="nav-btn">Home</button></li>

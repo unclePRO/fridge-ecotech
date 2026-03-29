@@ -267,7 +267,7 @@ input, select {
         overflow-x: auto; /* Allows scrolling the header if it's too tight */
         white-space: nowrap;
     }
-    
+
     .card { padding: 1.5rem; border-radius: 20px; }
 
     .floating-panel {
@@ -291,3 +291,27 @@ input, select {
     to { opacity: 1; transform: translateY(0); } 
 }
 .view-section:not(.hidden) { animation: fadeInUp 0.4s ease-out forwards; }
+
+
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: white;
+}
+
+.logo img {
+    height: 35px; /* Adjust this to match your font size */
+    width: auto;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+@media (max-width: 768px) {
+    .logo img {
+        height: 28px; /* Slightly smaller for mobile */
+    }
+}
