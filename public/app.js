@@ -35,9 +35,9 @@ onAuthStateChanged(auth, (user) => {
     const userProfile = document.getElementById('userProfile');
     const userNameDisplay = document.getElementById('userNameDisplay');
     const userAvatar = document.getElementById('userAvatar');
+    const loadingOverlay = document.getElementById('loadingOverlay');
 
     if (user) {
-        // User logged in
         loginBtn.classList.add('hidden');
         logoutBtn.classList.remove('hidden');
         userNameDisplay.innerText = `Hi, ${user.displayName.split(' ')[0]}`; 
@@ -47,17 +47,20 @@ onAuthStateChanged(auth, (user) => {
         document.querySelectorAll('.auth-req').forEach(el => el.classList.remove('hidden'));
         document.querySelectorAll('.logged-out-only').forEach(el => el.classList.add('hidden'));
 
-        // Load Local Profile
+        // Load Local Profile if it exists
         const savedProfile = localStorage.getItem(`fridge_profile_${user.uid}`);
-        if (!savedProfile) {
-            document.getElementById('setupModal').classList.remove('hidden');
-        } else {
+        if (savedProfile) {
             currentProfile = JSON.parse(savedProfile);
             if(document.getElementById('displayOrgName')) {
                 document.getElementById('displayOrgName').innerText = currentProfile.orgName;
             }
             
             // Pre-fill profile form
+            if(document.getElementById('userRole')) document.getElementById('userRole').value = currentProfile.role || '';
+            if(document.getElementById('orgName')) document.getElementById('orgName').value = currentProfile.orgName.replace(' ✓', '') || '';
+            window.toggleVerificationFields(); 
+            if(document.getElementById('fssaiNum') && currentProfile.licenseNumber) document.getElementById('fssaiNum').value = currentProfile.licenseNumber;
+            if(document.getElementById('darpanId') && currentProfile.licenseNumber) document.getElementById('darpanId').value = currentProfile.licenseNumber;
             if(document.getElementById('contactPerson')) document.getElementById('contactPerson').value = currentProfile.contactPerson || '';
             if(document.getElementById('contactPhone')) document.getElementById('contactPhone').value = currentProfile.phone || '';
             
@@ -71,13 +74,21 @@ onAuthStateChanged(auth, (user) => {
                 }
             }
         }
+        if (loadingOverlay) {
+            loadingOverlay.style.opacity = '0';
+            setTimeout(() => loadingOverlay.style.display = 'none', 400);
+        }
     } else {
-        // User logged out
         loginBtn.classList.remove('hidden');
         logoutBtn.classList.add('hidden');
         userProfile.classList.add('hidden');
         document.querySelectorAll('.auth-req').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.logged-out-only').forEach(el => el.classList.remove('hidden'));
+
+        if (loadingOverlay) {
+            loadingOverlay.style.opacity = '0';
+            setTimeout(() => loadingOverlay.style.display = 'none', 400);
+        }
     }
 });
 
@@ -97,7 +108,7 @@ window.toggleVerificationFields = () => {
 };
 
 // --- 4. MAPS & GEOLOCATION ---
-const DEFAULT_COORDS = [12.8384, 80.1362]; // IIITDM coordinates
+const DEFAULT_COORDS = [12.8384, 80.1362]; 
 let userLocation = DEFAULT_COORDS; 
 let findMap, findUserMarker, profileMap, profileMarker;
 let findMapMarkers = []; 
@@ -109,13 +120,11 @@ const userIcon = L.icon({
 });
 
 function initMaps() {
-    // Read-only map for NGOs
     if(document.getElementById('findMap') && !findMap) {
         findMap = L.map('findMap').setView(userLocation, 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(findMap);
         findUserMarker = L.marker(userLocation, { icon: userIcon }).addTo(findMap);
     }
-    // Draggable map for Profile Setup
     if(document.getElementById('profileMap') && !profileMap) {
         profileMap = L.map('profileMap').setView(userLocation, 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(profileMap);
@@ -128,10 +137,17 @@ function initMaps() {
     }
 }
 
-// --- 5. NAVIGATION (CLICK-BLOCK MODEL) ---
+// --- 5. NAVIGATION (STRICT CLICK-BLOCK) ---
 window.switchView = (viewId) => {
-    // Role-Based Navigation Interception
-    if (currentProfile && viewId !== 'home' && viewId !== 'profile') {
+    
+    if (viewId !== 'home' && viewId !== 'profile') {
+        // NEW: Global Verification Gatekeeper
+        if (!currentProfile || !currentProfile.isVerified || !currentProfile.lat) {
+            alert("⚠️ Please verify your organization and complete your profile details first.");
+            return window.switchView('profile'); // Force them to the profile page
+        }
+
+        // Role-Based Navigation Interception
         if (viewId === 'donate' && currentProfile.role !== 'donor') {
             alert("Access Denied: Only registered Restaurants and Donors can post food.");
             return; 
@@ -169,10 +185,9 @@ window.switchView = (viewId) => {
     if (viewId === 'mylistings') window.loadMyListings(); 
 };
 
-// --- 6. DATA VISUALIZATION (FEED & LEADERBOARD) ---
+// --- 6. DATA VISUALIZATION ---
 window.loadFoodFeed = async () => {
     if (!currentProfile || !currentProfile.lat) return; 
-
     try {
         const res = await fetch(API_URL);
         let items = await res.json();
@@ -203,7 +218,7 @@ window.loadFoodFeed = async () => {
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; margin-left: 1rem;">
-                    <button class="btn claim-btn" onclick="claimFood('${item._id}')">Claim</button>
+                    <button class="btn claim-btn" onclick="claimFood('${item._id}', '${item.donor.replace(/'/g, "\\'")}', ${item.lat}, ${item.lng}, '${timeDisplay}')">Claim & Route</button>
                 </div>`;
             container.appendChild(div);
 
@@ -253,10 +268,62 @@ window.loadMyListings = async () => {
     });
 };
 
-window.claimFood = async (id) => { 
+let routeMapInstance = null; // Holds the mini-map
+
+window.claimFood = async (id, donorName, donorLat, donorLng, pickupTime) => { 
     if (currentProfile?.role !== 'ngo') return alert("Access Denied: Only registered NGOs can claim food fleets.");
-    const res = await fetch(`${API_URL}/${id}/claim`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({uid: currentUser.uid}) });
-    if (res.ok) { window.loadFoodFeed(); alert("Route Claimed! Coordinate with the donor for pickup."); }
+    
+    try {
+        const res = await fetch(`${API_URL}/${id}/claim`, { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({uid: currentUser.uid}) 
+        });
+        
+        if (res.ok) { 
+            // 1. Refresh feed to remove the item
+            window.loadFoodFeed(); 
+            
+            // 2. Populate the Floating Panel
+            document.getElementById('routeDonorName').innerText = donorName;
+            document.getElementById('routeTime').innerText = pickupTime;
+            document.getElementById('activeRoutePanel').classList.remove('hidden');
+            
+            // 3. Initialize the Mini-Map (if not already created)
+            if (!routeMapInstance) {
+                routeMapInstance = L.map('routeMap', { zoomControl: false });
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(routeMapInstance);
+            }
+            
+            // 4. Clear any old routes
+            routeMapInstance.eachLayer((layer) => {
+                if (layer instanceof L.Marker || layer instanceof L.Polyline) routeMapInstance.removeLayer(layer);
+            });
+
+            // 5. Draw the Route Points
+            const ngoCoords = [currentProfile.lat, currentProfile.lng];
+            const donorCoords = [donorLat, donorLng];
+
+            L.marker(ngoCoords).addTo(routeMapInstance).bindPopup('NGO (You)').openPopup();
+            L.marker(donorCoords, {icon: userIcon}).addTo(routeMapInstance).bindPopup('Pickup');
+            
+            // 6. Draw the dashed route line
+            const routeLine = L.polyline([ngoCoords, donorCoords], { 
+                color: '#2563eb', // Blue route line
+                weight: 4, 
+                dashArray: '8, 8' 
+            }).addTo(routeMapInstance);
+            
+            // 7. Auto-zoom map to fit both points perfectly
+            routeMapInstance.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+            setTimeout(() => routeMapInstance.invalidateSize(), 300);
+        }
+    } catch (err) { console.error(err); }
+};
+
+// Function to close the panel
+window.closeRoutePanel = () => {
+    document.getElementById('activeRoutePanel').classList.add('hidden');
 };
 
 window.cancelListing = async (id) => { 
@@ -284,39 +351,28 @@ window.loadLeaderboard = async () => {
 // --- 7. ROBUST GLOBAL FORM HANDLER ---
 document.addEventListener('submit', async (e) => {
     
-    // 1. SETUP FORM (New Users)
-    if (e.target && e.target.id === 'setupForm') {
+    // MY PROFILE FORM (Unified Verification & Location)
+    if (e.target && e.target.id === 'profileForm') {
         e.preventDefault();
+        
         const role = document.getElementById('userRole').value;
         const orgName = document.getElementById('orgName').value;
-        
         const fssaiInput = document.getElementById('fssaiNum');
         const darpanInput = document.getElementById('darpanId');
+        
         const license = (role === 'donor' && fssaiInput) ? fssaiInput.value : 
                         (darpanInput ? darpanInput.value : 'Pending');
 
-        currentProfile = { orgName: `${orgName} ✓`, role: role, isVerified: true };
-        localStorage.setItem(`fridge_profile_${currentUser.uid}`, JSON.stringify(currentProfile));
-        
-        try {
-            await fetch(`${API_URL}/profile`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid: currentUser.uid, orgName: currentProfile.orgName, role: role, licenseNumber: license, isVerified: true })
-            });
-            document.getElementById('setupModal').classList.add('hidden');
-            alert("Account created! Please click your name at the top to complete your profile location.");
-            window.switchView('profile'); 
-        } catch (err) { console.error("Profile Sync Error", err); }
-    }
-
-    // 2. MY PROFILE FORM (Saving Base Location)
-    if (e.target && e.target.id === 'profileForm') {
-        e.preventDefault();
-        currentProfile.contactPerson = document.getElementById('contactPerson').value;
-        currentProfile.phone = document.getElementById('contactPhone').value;
-        currentProfile.lat = userLocation[0];
-        currentProfile.lng = userLocation[1];
+        currentProfile = {
+            orgName: `${orgName} ✓`,
+            role: role,
+            licenseNumber: license,
+            isVerified: true,
+            contactPerson: document.getElementById('contactPerson').value,
+            phone: document.getElementById('contactPhone').value,
+            lat: userLocation[0],
+            lng: userLocation[1]
+        };
 
         localStorage.setItem(`fridge_profile_${currentUser.uid}`, JSON.stringify(currentProfile));
 
@@ -326,16 +382,17 @@ document.addEventListener('submit', async (e) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     uid: currentUser.uid, orgName: currentProfile.orgName, role: currentProfile.role,
+                    licenseNumber: currentProfile.licenseNumber, isVerified: currentProfile.isVerified,
                     contactPerson: currentProfile.contactPerson, phone: currentProfile.phone,
                     lat: currentProfile.lat, lng: currentProfile.lng
                 })
             });
-            alert("✅ Profile & Location Saved Successfully!");
+            alert("✅ Verification & Location Saved Successfully!");
             window.switchView('home');
         } catch (err) { console.error("Profile Sync Error", err); }
     }
 
-    // 3. DONATION FORM (Posting Food)
+    // DONATION FORM (Posting Food)
     if (e.target && e.target.id === 'donationForm') {
         e.preventDefault(); 
         
@@ -344,12 +401,6 @@ document.addEventListener('submit', async (e) => {
             return; 
         }
 
-        if (!currentProfile.lat) {
-            alert("⚠️ Please set your Base Location in 'My Profile' (click your name at the top right) before posting food.");
-            window.switchView('profile'); 
-            return;
-        }
-        
         try {
             const response = await fetch(API_URL, {
                 method: 'POST', 
@@ -371,7 +422,8 @@ document.addEventListener('submit', async (e) => {
                 e.target.reset(); 
                 window.switchView('mylistings'); 
             } else {
-                alert("Server Error: Could not post food.");
+                const errorData = await response.json();
+                alert("Backend Rejection: " + (errorData.message || errorData.error || JSON.stringify(errorData)));
             }
         } catch (error) { console.error("Donation Error:", error); }
     }

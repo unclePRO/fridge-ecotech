@@ -9,6 +9,11 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="loadingOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; z-index: 99999; display: flex; justify-content: center; align-items: center; flex-direction: column; transition: opacity 0.4s ease;">
+        <h1 style="color: var(--primary-color); margin-bottom: 10px;">fridge! 🌿</h1>
+        <p style="color: #666;">Syncing network...</p>
+    </div>
+    
     <header>
         <div class="logo" onclick="switchView('home')">fridge!</div>
         <nav>
@@ -31,56 +36,8 @@
         </div>
     </header>
 
-    <div id="setupModal" class="modal hidden">
-        <div class="modal-content card" style="max-width: 500px;">
-            <h2 style="margin-bottom: 0.5rem;">Verified Onboarding</h2>
-            <p style="color: var(--text-light); margin-bottom: 1.5rem; font-size: 0.85rem;">
-                Select your role to view the required legal verification steps.
-            </p>
-            <form id="setupForm">
-                <div class="form-group">
-                    <label>Account Type</label>
-                    <select id="userRole" required onchange="toggleVerificationFields()" style="width: 100%; padding: 0.9rem; border-radius: 12px; border: 1px solid #cbd5e1;">
-                        <option value="" disabled selected>Select organization type...</option>
-                        <option value="donor">Restaurant / Caterer (Donor)</option>
-                        <option value="ngo">NGO / Food Bank (Receiver)</option>
-                    </select>
-                </div>
-
-                <div id="donorFields" class="hidden">
-                    <div class="form-group">
-                        <label>FSSAI License Number</label>
-                        <input type="text" id="fssaiNum" placeholder="14-digit FSSAI Code">
-                    </div>
-                    <p style="font-size: 0.75rem; color: var(--text-light); margin-top: -0.5rem; margin-bottom: 1rem;">
-                        Note: Physical & Bank verification will follow document approval.
-                    </p>
-                </div>
-
-                <div id="ngoFields" class="hidden">
-                    <div class="form-group">
-                        <label>NGO DARPAN ID</label>
-                        <input type="text" id="darpanId" placeholder="TN/202X/XXXXXX">
-                    </div>
-                    <div class="form-group">
-                        <label>80G / 12A Certificate Number</label>
-                        <input type="text" id="taxCert" placeholder="Certificate Reg. No.">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Organization Name</label>
-                    <input type="text" id="orgName" required placeholder="e.g., Robin Hood Army">
-                </div>
-                
-                <button type="submit" class="btn primary-btn" style="width: 100%; margin-top: 1rem;">Verify & Enter Platform</button>
-            </form>
-        </div>
-    </div>
-
-<main>
+    <main>
         <section id="home-view" class="view-section">
-            
             <div class="hero-card card">
                 <h1>Don't waste, just share. 🌿</h1>
                 <p>Connecting local restaurants with NGOs to ensure no meal goes to waste. Simple, fast, and verified.</p>
@@ -88,9 +45,7 @@
                 <div class="hero-buttons">
                     <button onclick="switchView('donate')" class="btn primary-btn auth-req hidden">Post Surplus Food</button>
                     <button onclick="switchView('find')" class="btn primary-btn auth-req hidden">Find Food Nearby</button> 
-                    
                     <button onclick="signInWithGoogle()" class="btn primary-btn logged-out-only">Get Started</button>
-                    
                     <button onclick="switchView('find')" class="btn secondary-btn logged-out-only">View Live Map</button>
                 </div>
             </div>
@@ -127,8 +82,7 @@
 
                 <div class="card leaderboard-card">
                     <h2>Top Contributors 🏆</h2>
-                    <div id="leaderboardFeed" class="feed">
-                        </div>
+                    <div id="leaderboardFeed" class="feed"></div>
                     <button onclick="loadLeaderboard()" class="btn refresh-btn" style="margin-top: 1rem;">Update Rankings</button>
                 </div>
             </div>
@@ -136,28 +90,54 @@
 
         <section id="profile-view" class="view-section hidden">
             <div class="card">
-                <h2>Organization Profile</h2>
-                <p style="font-size: 0.9rem; color: #555; margin-bottom: 1.5rem;">Update your contact details and operational location here.</p>
+                <h2>Organization Verification</h2>
+                <p style="font-size: 0.9rem; color: #555; margin-bottom: 1.5rem;">Complete your details and verify your organization to access the platform.</p>
                 
                 <form id="profileForm">
                     <div class="form-group flex-group" style="display: flex; gap: 1rem;">
                         <div style="flex: 1;">
-                            <label for="contactPerson">Point of Contact</label>
+                            <label for="userRole">Organization Type <span style="color:red">*</span></label>
+                            <select id="userRole" onchange="toggleVerificationFields()" required>
+                                <option value="" disabled selected>Select Role...</option>
+                                <option value="donor">Restaurant / Food Donor</option>
+                                <option value="ngo">NGO / Food Bank</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1;">
+                            <label for="orgName">Organization Name <span style="color:red">*</span></label>
+                            <input type="text" id="orgName" required placeholder="e.g., Ananda Bhavan">
+                        </div>
+                    </div>
+
+                    <div id="donorFields" class="hidden form-group">
+                        <label for="fssaiNum">FSSAI License Number <span style="color:red">*</span></label>
+                        <input type="text" id="fssaiNum" placeholder="14-digit FSSAI number">
+                    </div>
+                    <div id="ngoFields" class="hidden form-group">
+                        <label for="darpanId">NGO DARPAN ID <span style="color:red">*</span></label>
+                        <input type="text" id="darpanId" placeholder="e.g., TN/2023/0123456">
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 1.5rem 0;">
+
+                    <div class="form-group flex-group" style="display: flex; gap: 1rem;">
+                        <div style="flex: 1;">
+                            <label for="contactPerson">Point of Contact <span style="color:red">*</span></label>
                             <input type="text" id="contactPerson" required placeholder="e.g., Manager Name">
                         </div>
                         <div style="flex: 1;">
-                            <label for="contactPhone">Phone Number</label>
+                            <label for="contactPhone">Phone Number <span style="color:red">*</span></label>
                             <input type="tel" id="contactPhone" required placeholder="+91 9876543210">
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <label>Base Location</label>
-                        <p style="font-size: 0.8rem; color: var(--accent-color); margin-bottom: 0.5rem; font-weight: 600;">Drag the red pin to set your exact location.</p>
+                        <label>Base Location <span style="color:red">*</span></label>
+                        <p style="font-size: 0.8rem; color: var(--accent-color); margin-bottom: 0.5rem; font-weight: 600;">Drag the red pin to set your exact operating location.</p>
                         <div id="profileMap" class="map-container" style="height: 250px; margin-bottom: 1rem;"></div>
                     </div>
                     
-                    <button type="submit" class="btn primary-btn" style="width: 100%;">Save Profile Settings</button>
+                    <button type="submit" class="btn primary-btn pulse-btn" style="width: 100%;">Verify & Save Profile</button>
                 </form>
             </div>
         </section>
@@ -214,10 +194,45 @@
                 <h2>My Active Listings</h2>
                 <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Manage your active food donations. Cancel them if they are no longer available.</p>
                 <button onclick="loadMyListings()" class="btn refresh-btn">Refresh My Listings</button>
-                <div id="myListingsFeed" class="feed">
-                    </div>
+                <div id="myListingsFeed" class="feed"></div>
             </div>
         </section>
+
+        <style>
+            .floating-panel {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 320px;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+                z-index: 10000;
+                overflow: hidden;
+                border: 1px solid #e2e8f0;
+                transition: transform 0.3s ease-in-out;
+            }
+            .floating-panel.hidden { transform: translateY(150%); }
+            .panel-header { background: var(--primary-color); color: white; padding: 12px 15px; font-weight: 600; display: flex; justify-content: space-between; align-items: center;}
+            .panel-body { padding: 15px; }
+            .route-btn { background: #f59e0b; color: white; border: none; padding: 8px; width: 100%; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+            .route-btn:hover { background: #d97706; }
+        </style>
+
+        <div id="activeRoutePanel" class="floating-panel hidden">
+            <div class="panel-header">
+                <span>📍 Active Pickup Route</span>
+                <button onclick="closeRoutePanel()" style="background:none; border:none; color:white; cursor:pointer; font-size: 1.2rem;">&times;</button>
+            </div>
+            <div id="routeMap" style="height: 180px; width: 100%; background: #f1f5f9;"></div>
+            
+            <div class="panel-body">
+                <h3 id="routeDonorName" style="margin-top: 0; margin-bottom: 8px; font-size: 1.1rem;">Restaurant Name</h3>
+                <p style="margin: 0 0 5px 0; font-size: 0.9rem; color: #475569;"><strong>📞 Contact:</strong> <span id="routePhone">+91 Registered Number</span></p>
+                <p style="margin: 0 0 5px 0; font-size: 0.9rem; color: #475569;"><strong>⏰ Pickup Time:</strong> <span id="routeTime"></span></p>
+                <button onclick="alert('Sending coordinates to Google Maps...')" class="route-btn">Start GPS Navigation</button>
+            </div>
+        </div>
     </main>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
