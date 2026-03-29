@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>fridge! | EcoTech</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="switchView('home')">fridge!</div>
+        <nav>
+            <ul class="nav-links">
+                <li><button onclick="switchView('home')" class="nav-btn">Home</button></li>
+                <li><button onclick="switchView('donate')" class="nav-btn auth-req hidden">Donate</button></li>
+                <li><button onclick="switchView('find')" class="nav-btn auth-req hidden">Find Food</button></li>
+                <li><button onclick="switchView('mylistings')" class="nav-btn auth-req hidden">My Listings</button></li>
+            </ul>
+        </nav>
+        
+        <div class="auth-controls">
+            <div id="userProfile" class="user-profile hidden" onclick="switchView('profile')" style="cursor: pointer; border: 1px solid rgba(255,255,255,0.4);" title="Open My Profile">
+                <img id="userAvatar" src="" alt="Profile" class="avatar">
+                <span id="userNameDisplay"></span>
+                <span style="margin-left: 5px; font-size: 0.8rem;">⚙️</span>
+            </div>
+            <button id="loginBtn" onclick="signInWithGoogle()" class="btn auth-btn">Sign In</button>
+            <button id="logoutBtn" onclick="signOutUser()" class="btn auth-btn hidden">Sign Out</button>
+        </div>
+    </header>
+
+    <div id="setupModal" class="modal hidden">
+        <div class="modal-content card" style="max-width: 500px;">
+            <h2 style="margin-bottom: 0.5rem;">Verified Onboarding</h2>
+            <p style="color: var(--text-light); margin-bottom: 1.5rem; font-size: 0.85rem;">
+                Select your role to view the required legal verification steps.
+            </p>
+            <form id="setupForm">
+                <div class="form-group">
+                    <label>Account Type</label>
+                    <select id="userRole" required onchange="toggleVerificationFields()" style="width: 100%; padding: 0.9rem; border-radius: 12px; border: 1px solid #cbd5e1;">
+                        <option value="" disabled selected>Select organization type...</option>
+                        <option value="donor">Restaurant / Caterer (Donor)</option>
+                        <option value="ngo">NGO / Food Bank (Receiver)</option>
+                    </select>
+                </div>
+
+                <div id="donorFields" class="hidden">
+                    <div class="form-group">
+                        <label>FSSAI License Number</label>
+                        <input type="text" id="fssaiNum" placeholder="14-digit FSSAI Code">
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-light); margin-top: -0.5rem; margin-bottom: 1rem;">
+                        Note: Physical & Bank verification will follow document approval.
+                    </p>
+                </div>
+
+                <div id="ngoFields" class="hidden">
+                    <div class="form-group">
+                        <label>NGO DARPAN ID</label>
+                        <input type="text" id="darpanId" placeholder="TN/202X/XXXXXX">
+                    </div>
+                    <div class="form-group">
+                        <label>80G / 12A Certificate Number</label>
+                        <input type="text" id="taxCert" placeholder="Certificate Reg. No.">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Organization Name</label>
+                    <input type="text" id="orgName" required placeholder="e.g., Robin Hood Army">
+                </div>
+                
+                <button type="submit" class="btn primary-btn" style="width: 100%; margin-top: 1rem;">Verify & Enter Platform</button>
+            </form>
+        </div>
+    </div>
+
+<main>
+        <section id="home-view" class="view-section">
+            
+            <div class="hero-card card">
+                <h1>Don't waste, just share. 🌿</h1>
+                <p>Connecting local restaurants with NGOs to ensure no meal goes to waste. Simple, fast, and verified.</p>
+                
+                <div class="hero-buttons">
+                    <button onclick="switchView('donate')" class="btn primary-btn auth-req hidden">Post Surplus Food</button>
+                    <button onclick="switchView('find')" class="btn primary-btn auth-req hidden">Find Food Nearby</button> 
+                    
+                    <button onclick="signInWithGoogle()" class="btn primary-btn logged-out-only">Get Started</button>
+                    
+                    <button onclick="switchView('find')" class="btn secondary-btn logged-out-only">View Live Map</button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 2rem;">
+                <h2 style="text-align: center; margin-bottom: 2rem;">How it works</h2>
+                <div class="simple-steps">
+                    <div class="step">
+                        <div class="step-circle">1</div>
+                        <h3>List</h3>
+                        <p>Restaurants post surplus food in seconds.</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">2</div>
+                        <h3>Alert</h3>
+                        <p>Nearby NGOs get an instant notification.</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-circle">3</div>
+                        <h3>Share</h3>
+                        <p>Food is picked up and delivered to those in need.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="home-grid">
+                <div class="card stat-card">
+                    <h2>Our Impact</h2>
+                    <div class="mini-stats">
+                        <div class="m-stat"><strong>1,200+</strong><span>Meals Saved</span></div>
+                        <div class="m-stat"><strong>50+</strong><span>Verified Partners</span></div>
+                    </div>
+                </div>
+
+                <div class="card leaderboard-card">
+                    <h2>Top Contributors 🏆</h2>
+                    <div id="leaderboardFeed" class="feed">
+                        </div>
+                    <button onclick="loadLeaderboard()" class="btn refresh-btn" style="margin-top: 1rem;">Update Rankings</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="profile-view" class="view-section hidden">
+            <div class="card">
+                <h2>Organization Profile</h2>
+                <p style="font-size: 0.9rem; color: #555; margin-bottom: 1.5rem;">Update your contact details and operational location here.</p>
+                
+                <form id="profileForm">
+                    <div class="form-group flex-group" style="display: flex; gap: 1rem;">
+                        <div style="flex: 1;">
+                            <label for="contactPerson">Point of Contact</label>
+                            <input type="text" id="contactPerson" required placeholder="e.g., Manager Name">
+                        </div>
+                        <div style="flex: 1;">
+                            <label for="contactPhone">Phone Number</label>
+                            <input type="tel" id="contactPhone" required placeholder="+91 9876543210">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Base Location</label>
+                        <p style="font-size: 0.8rem; color: var(--accent-color); margin-bottom: 0.5rem; font-weight: 600;">Drag the red pin to set your exact location.</p>
+                        <div id="profileMap" class="map-container" style="height: 250px; margin-bottom: 1rem;"></div>
+                    </div>
+                    
+                    <button type="submit" class="btn primary-btn" style="width: 100%;">Save Profile Settings</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="donate-view" class="view-section hidden">
+            <div class="card">
+                <h2>List Surplus Food</h2>
+                <div style="background: var(--secondary-color); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--accent-color);">
+                    <p style="margin:0; font-weight: 600;">Donating as: <span id="displayOrgName" style="color: var(--primary-color);"></span> ✓</p>
+                    <p style="margin:0; font-size: 0.85rem; color: var(--text-light);">Your saved location will be used automatically.</p>
+                </div>
+
+                <form id="donationForm">
+                    <div class="form-group">
+                        <label for="foodItem">Food Description</label>
+                        <input type="text" id="foodItem" required placeholder="e.g., 50 Chapatis or 2 Trays of Rice">
+                    </div>
+                    
+                    <div class="form-group flex-group" style="display: flex; gap: 1rem;">
+                        <div style="flex: 1;">
+                            <label for="estQuantity">Estimated Quantity</label>
+                            <input type="text" id="estQuantity" required placeholder="e.g., 20-50 meals">
+                        </div>
+                        <div style="flex: 1;">
+                            <label for="expiry">Best Before</label>
+                            <input type="text" id="expiry" required placeholder="e.g., 3 Hours">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pickupTime">Scheduled Pickup Time</label>
+                        <input type="time" id="pickupTime" required>
+                    </div>
+                    
+                    <button type="submit" class="btn primary-btn pulse-btn" style="margin-top: 1rem; width: 100%;">Post Listing & Alert NGOs</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="find-view" class="view-section hidden">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="margin-bottom: 0; border: none; padding: 0;">Available Food Nearby</h2>
+                </div>
+                <p style="font-size: 0.85rem; color: #555; margin-bottom: 1rem;">Showing active surplus within your operating radius.</p>
+                <div id="findMap" class="map-container" style="height: 350px; margin-bottom: 1.5rem;"></div>
+                <button onclick="loadFoodFeed()" class="btn refresh-btn">Refresh Feed</button>
+                <div id="foodFeed" class="feed"></div>
+            </div>
+        </section>
+
+        <section id="mylistings-view" class="view-section hidden">
+            <div class="card">
+                <h2>My Active Listings</h2>
+                <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Manage your active food donations. Cancel them if they are no longer available.</p>
+                <button onclick="loadMyListings()" class="btn refresh-btn">Refresh My Listings</button>
+                <div id="myListingsFeed" class="feed">
+                    </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>
