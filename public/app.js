@@ -18,7 +18,7 @@ const provider = new GoogleAuthProvider();
 // Global State
 let currentUser = null;
 let currentProfile = null; 
-const API_URL = 'http://localhost:5000/api/food';
+const API_URL = 'https://fridge-ecotech.onrender.com';
 
 // --- 2. AUTHENTICATION ---
 window.signInWithGoogle = () => { signInWithPopup(auth, provider).catch(e => console.error(e)); };
