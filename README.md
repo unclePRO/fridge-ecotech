@@ -7,6 +7,8 @@
 [![Render](https://img.shields.io/badge/Backend-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://render.com)
 
 ---
+## Demo Video:
+https://github.com/user-attachments/assets/684d14bb-027a-428a-9bad-f2d0a51fed15
 
 ## Project Overview
 **fridge!** is a B2B logistics platform designed to streamline bulk food donations between commercial donors (restaurants, hotels, caterers) and verified NGOs. We focus on professional-grade surplus management to ensure food safety, accountability, and efficiency at scale.
