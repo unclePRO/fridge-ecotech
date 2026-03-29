@@ -315,3 +315,44 @@ input, select {
         height: 28px; /* Slightly smaller for mobile */
     }
 }
+
+/* --- FINAL BUTTON COLOR FIXES --- */
+
+/* 1. Delete/Cancel (Red) */
+.delete-btn, .cancel-btn {
+    background-color: #ef4444 !important;
+    color: white !important;
+    border: none !important;
+    display: inline-block;
+}
+.delete-btn:hover, .cancel-btn:hover {
+    background-color: #dc2626 !important;
+}
+
+/* 2. Claim & GPS Route (Blue) */
+.claim-btn, .route-btn {
+    background-color: #2563eb !important;
+    color: white !important;
+    border: none !important;
+}
+.claim-btn:hover, .route-btn:hover {
+    background-color: #1d4ed8 !important;
+}
+
+/* 3. Refresh & Update Ranking Buttons (Slate/Grey-Blue) */
+.refresh-btn {
+    background-color: #64748b !important;
+    color: white !important;
+    border: none !important;
+    margin-bottom: 1rem;
+    width: 100%; /* Makes them consistent across cards */
+}
+.refresh-btn:hover {
+    background-color: #475569 !important;
+}
+
+/* 4. Verification/Primary Pulse Buttons (Theme Green) */
+.pulse-btn {
+    background-color: var(--accent-color) !important;
+    color: white !important;
+}
